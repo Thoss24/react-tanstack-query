@@ -5,29 +5,41 @@ import { useParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import ErrorBlock from "../UI/ErrorBlock.jsx";
 import { queryClient } from "../utility/http.js";
+import { useState } from "react";
 
+import Modal from "../UI/Modal.jsx";
 import Header from "../Header.jsx";
 
 export default function EventDetails() {
+  const [isDeleting, setIsDeleting] = useState(false)
   const param = useParams();
   const id = param.id;
 
   const navigate = useNavigate();
 
-  const { data, error, isError, isLoading } = useQuery({
+  const { data, error, isError, isLoading, isPending: pendingEvents } = useQuery({
     queryKey: ["events", {id: id}],
     queryFn: ({ signal }) => fetchEvent({ id, signal }),
   });
 
-  const { mutate } = useMutation({
+  const { mutate, isPending : pendingDeletion } = useMutation({
     mutationFn: deleteEvent,
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ['events']
+        queryKey: ['events'],
+        refetchType: 'none'
       })
       navigate('/events')
     }
   });
+
+  const startDelete = () => {
+    setIsDeleting(true)
+  };
+
+  const cancelDelete = () => {
+    setIsDeleting(false)
+  };
 
   const deleteEventHandler = () => {
     mutate({ id: id})
@@ -35,6 +47,14 @@ export default function EventDetails() {
 
   return (
     <>
+    {isDeleting && 
+      <Modal>
+        <h2>Are you sure you want to delete this event?</h2>
+        {pendingDeletion && <h2>Loading...</h2>}
+        <button onClick={deleteEventHandler}>Yes</button>
+        <button onClick={cancelDelete}>No</button>
+      </Modal>
+    }
       <Outlet />
       <Header>
         <Link to="/events" className="nav-item">
@@ -47,7 +67,7 @@ export default function EventDetails() {
           <header>
             <h1>{data.title}</h1>
             <nav>
-              <button onClick={deleteEventHandler}>Delete</button>
+              <button onClick={startDelete}>Delete</button>
               <Link to="edit">Edit</Link>
             </nav>
           </header>
